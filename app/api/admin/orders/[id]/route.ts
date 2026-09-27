@@ -26,7 +26,7 @@ export async function PATCH(
     waybill?: string;
   };
 
-  const order = getOrder(id);
+  const order = await getOrder(id);
   if (!order) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
@@ -37,10 +37,12 @@ export async function PATCH(
 
   let updated = order;
   if (body.status) {
-    updated = updateOrderStatus(id, body.status) || updated;
+    const result = await updateOrderStatus(id, body.status);
+    if (result) updated = result;
   }
   if (body.waybill !== undefined) {
-    updated = updateOrderWaybill(id, body.waybill) || updated;
+    const result = await updateOrderWaybill(id, body.waybill);
+    if (result) updated = result;
   }
 
   return NextResponse.json({ order: updated });

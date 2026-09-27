@@ -1,0 +1,29 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model Order {
+  id               String   @id
+  name             String
+  whatsapp         String
+  deliveryMethod   String
+  address          String?
+  items            Json
+  subtotal         Int
+  deliveryFee      Int
+  total            Int
+  status           String   @default("pending")
+  payshapReference String
+  createdAt        DateTime @default(now())
+  waybill          String?
+
+  @@index([status])
+  @@index([createdAt])
+}

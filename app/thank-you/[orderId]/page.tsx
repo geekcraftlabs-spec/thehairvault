@@ -17,7 +17,7 @@ export default async function ThankYouPage({
   params: Promise<{ orderId: string }>;
 }) {
   const { orderId } = await params;
-  const order = getOrder(orderId);
+  const order = await getOrder(orderId);
   const firstName = order?.name.split(" ")[0] ?? "";
 
   return (

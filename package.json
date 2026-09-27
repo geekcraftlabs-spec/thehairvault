@@ -1,31 +1,32 @@
 {
-  "name": "thecrownvault",
+  "name": "thehairvault",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "next lint"
   },
   "dependencies": {
-    "@prisma/client": "^7.10.0",
-    "framer-motion": "^13.4.4",
-    "lucide-react": "^1.48.0",
+    "@prisma/client": "5.20.0",
+    "framer-motion": "^11.15.0",
+    "lucide-react": "^0.469.0",
     "next": "16.3.6",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "zustand": "^5.0.15"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zustand": "^5.0.2"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
+    "eslint": "^8.57.0",
     "eslint-config-next": "16.3.6",
-    "prisma": "^8.0.0-rc.17",
-    "tailwindcss": "^4",
+    "postcss": "^8.4.0",
+    "prisma": "5.20.0",
+    "tailwindcss": "^4.0.0",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5"
   }

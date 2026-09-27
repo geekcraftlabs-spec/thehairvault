@@ -1,4 +1,5 @@
 // lib/orders.ts
+import { prisma } from "./db";
 import { CartItem } from "@/types";
 
 export type OrderStatus =
@@ -25,9 +26,6 @@ export interface Order {
   waybill: string | null;
 }
 
-// ⚠️ TEMPORARY in-memory store. Wipes on server restart.
-const orders = new Map<string, Order>();
-
 function generateOrderId(): string {
   const now = new Date();
   const yy = String(now.getFullYear()).slice(-2);
@@ -50,7 +48,7 @@ export function toWaNumber(phone: string): string {
   return phone.replace(/\D/g, "");
 }
 
-export function createOrder(data: {
+export async function createOrder(data: {
   name: string;
   whatsapp: string;
   deliveryMethod: "door" | "locker";
@@ -59,64 +57,77 @@ export function createOrder(data: {
   subtotal: number;
   deliveryFee: number;
   total: number;
-}): Order {
-  const order: Order = {
-    id: generateOrderId(),
-    name: data.name,
-    whatsapp: data.whatsapp,
-    deliveryMethod: data.deliveryMethod,
-    address: data.address,
-    items: data.items,
-    subtotal: data.subtotal,
-    deliveryFee: data.deliveryFee,
-    total: data.total,
-    status: "pending",
-    payshapReference: generatePayshapReference(data.name),
-    createdAt: new Date().toISOString(),
-    waybill: null,
-  };
-
-  orders.set(order.id, order);
-  return order;
+}): Promise<Order> {
+  const order = await prisma.order.create({
+    data: {
+      id: generateOrderId(),
+      name: data.name,
+      whatsapp: data.whatsapp,
+      deliveryMethod: data.deliveryMethod,
+      address: data.address,
+      items: data.items as unknown as object,
+      subtotal: data.subtotal,
+      deliveryFee: data.deliveryFee,
+      total: data.total,
+      status: "pending",
+      payshapReference: generatePayshapReference(data.name),
+      waybill: null,
+    },
+  });
+  return mapPrismaOrder(order);
 }
 
-export function getOrder(id: string): Order | undefined {
-  return orders.get(id);
+export async function getOrder(id: string): Promise<Order | undefined> {
+  const order = await prisma.order.findUnique({ where: { id } });
+  return order ? mapPrismaOrder(order) : undefined;
 }
 
-export function getAllOrders(): Order[] {
-  return Array.from(orders.values()).sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+export async function getAllOrders(): Promise<Order[]> {
+  const orders = await prisma.order.findMany({
+    orderBy: { createdAt: "desc" },
+  });
+  return orders.map(mapPrismaOrder);
 }
 
-export function getOrdersByStatus(status: OrderStatus): Order[] {
-  return getAllOrders().filter((o) => o.status === status);
+export async function getOrdersByStatus(
+  status: OrderStatus
+): Promise<Order[]> {
+  const orders = await prisma.order.findMany({
+    where: { status },
+    orderBy: { createdAt: "desc" },
+  });
+  return orders.map(mapPrismaOrder);
 }
 
-export function updateOrderStatus(
+export async function updateOrderStatus(
   id: string,
   status: OrderStatus
-): Order | undefined {
-  const order = orders.get(id);
-  if (!order) return undefined;
-  order.status = status;
-  orders.set(id, order);
-  return order;
+): Promise<Order | undefined> {
+  try {
+    const order = await prisma.order.update({
+      where: { id },
+      data: { status },
+    });
+    return mapPrismaOrder(order);
+  } catch {
+    return undefined;
+  }
 }
 
-export function updateOrderWaybill(
+export async function updateOrderWaybill(
   id: string,
   waybill: string
-): Order | undefined {
-  const order = orders.get(id);
-  if (!order) return undefined;
-  order.waybill = waybill;
-  orders.set(id, order);
-  return order;
+): Promise<Order | undefined> {
+  try {
+    const order = await prisma.order.update({
+      where: { id },
+      data: { waybill },
+    });
+    return mapPrismaOrder(order);
+  } catch {
+    return undefined;
+  }
 }
-
-/* ---------- Stats ---------- */
 
 export interface OrderStats {
   total: number;
@@ -130,12 +141,11 @@ export interface OrderStats {
   thisMonthRevenue: number;
 }
 
-export function getOrderStats(): OrderStats {
-  const all = getAllOrders();
+export async function getOrderStats(): Promise<OrderStats> {
+  const all = await getAllOrders();
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
-
   const paidStatuses: OrderStatus[] = ["paid", "shipped", "delivered"];
 
   return {
@@ -159,5 +169,37 @@ export function getOrderStats(): OrderStats {
         );
       })
       .reduce((sum, o) => sum + o.total, 0),
+  };
+}
+
+function mapPrismaOrder(o: {
+  id: string;
+  name: string;
+  whatsapp: string;
+  deliveryMethod: string;
+  address: string | null;
+  items: unknown;
+  subtotal: number;
+  deliveryFee: number;
+  total: number;
+  status: string;
+  payshapReference: string;
+  createdAt: Date;
+  waybill: string | null;
+}): Order {
+  return {
+    id: o.id,
+    name: o.name,
+    whatsapp: o.whatsapp,
+    deliveryMethod: o.deliveryMethod as "door" | "locker",
+    address: o.address,
+    items: o.items as CartItem[],
+    subtotal: o.subtotal,
+    deliveryFee: o.deliveryFee,
+    total: o.total,
+    status: o.status as OrderStatus,
+    payshapReference: o.payshapReference,
+    createdAt: o.createdAt.toISOString(),
+    waybill: o.waybill,
   };
 }
